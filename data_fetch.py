@@ -22,11 +22,16 @@ def fetch_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
     """
     frames = {}
     for ticker in tickers:
-        data = yf.download(ticker, start=start, end=end, progress=False)
-        if data.empty:
-            print(f"no data returned for {ticker}, skipping")
+        try:
+            data = yf.download(ticker, start=start, end=end, progress=False)
+            if data.empty:
+                print(f"no data returned for {ticker}, skipping")
+                continue
+            col = "Adj Close" if "Adj Close" in data.columns else data.columns[0]
+            frames[ticker] = data[col]
+        except Exception as e:
+            print(f"error downloading {ticker}: {e}")
             continue
-        frames[ticker] = data["Adj Close"]
 
     prices = pd.DataFrame(frames)
     prices = prices.dropna(how="all")
