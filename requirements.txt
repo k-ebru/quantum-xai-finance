@@ -1,0 +1,9 @@
+pandas
+numpy
+scikit-learn
+shap
+pennylane
+yfinance
+matplotlib
+scipy
+jupyter
