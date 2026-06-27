@@ -42,6 +42,13 @@ def build_feature_matrix(prices: pd.DataFrame) -> pd.DataFrame:
 
     Expects prices to include the sector ETFs plus ^VIX, ^TNX and ^IRX
     columns, as produced by data_fetch.fetch_prices.
+
+    Features are lagged by one day relative to the stress label. Without the
+    lag, portfolio_vol appears both as a feature and as the direct input to
+    the stress threshold, so a classifier just recovers the threshold rule
+    instead of learning anything (AUC = 1.0 by construction). The lag turns
+    this into an honest one-day-ahead prediction task: predict today's
+    regime from yesterday's close-of-day information.
     """
     sector_cols = [c for c in prices.columns if not c.startswith("^")]
 
@@ -51,10 +58,10 @@ def build_feature_matrix(prices: pd.DataFrame) -> pd.DataFrame:
     portfolio_vol = realized_volatility(portfolio_returns.to_frame("portfolio"))["portfolio"]
 
     features = pd.DataFrame(index=prices.index)
-    features["portfolio_vol"] = portfolio_vol
-    features["vix"] = prices["^VIX"]
-    features["yield_spread"] = yield_spread(prices["^TNX"], prices["^IRX"])
-    features["momentum"] = momentum(portfolio_price)
+    features["portfolio_vol"] = portfolio_vol.shift(1)
+    features["vix"] = prices["^VIX"].shift(1)
+    features["yield_spread"] = yield_spread(prices["^TNX"], prices["^IRX"]).shift(1)
+    features["momentum"] = momentum(portfolio_price).shift(1)
     features["stress"] = label_stress_regime(portfolio_vol)
 
     return features.dropna()
