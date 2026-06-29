@@ -45,6 +45,9 @@ def train_vqc(circuit, X_train, y_train, n_qubits, n_layers=N_LAYERS,
 
     y_train is expected to be encoded as -1 or 1 to match the PauliZ
     expectation value range, not as 0 or 1.
+
+    Returns (weights, loss_history) instead of just weights, so callers can
+    plot the training curve without duplicating the training loop.
     """
     weights = init_weights(n_qubits, n_layers)
     opt = qml.GradientDescentOptimizer(stepsize=lr)
@@ -54,12 +57,15 @@ def train_vqc(circuit, X_train, y_train, n_qubits, n_layers=N_LAYERS,
         preds = np.array([circuit(x, weights) for x in X_fixed])
         return np.mean((preds - y_train) ** 2)
 
+    loss_history = []
     for step in range(steps):
         weights = opt.step(loss_fn, weights)
+        current_loss = float(loss_fn(weights))
+        loss_history.append(current_loss)
         if step % 10 == 0:
-            print(f"step {step}, loss {loss_fn(weights):.4f}")
+            print(f"step {step}, loss {current_loss:.4f}")
 
-    return weights
+    return weights, loss_history
 
 
 def predict_vqc(circuit, X, weights):
