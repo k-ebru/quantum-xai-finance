@@ -77,8 +77,13 @@ contribute secondary signal, `yield_spread` the least.
 Comparing SHAP against quantum gradient x input attribution on 5 test samples: both methods rank
 `portfolio_vol` first and `momentum` last, but disagree on the middle ranking (`vix` vs
 `yield_spread`). Spearman rank correlation is 0.800, not statistically significant with only 4
-features. See notebook 06 for a specific, unexplained finding: the quantum method's `momentum`
-attribution is consistently near zero (~1e-16) across all sampled days.
+features. The quantum method's `momentum` attribution is consistently near zero (~1e-16) across
+all sampled days, and notebook 06 confirms this is not a fluke of the trained weights: it holds
+for 20 independent random weight sets too. `momentum` maps to the qubit diametrically opposite
+the measured qubit in the 4-qubit CNOT ring built by `BasicEntanglerLayers`, and the gradient
+with respect to that qubit's input angle appears to structurally cancel. It is a limitation of
+this circuit design, not evidence that momentum carries no signal, since SHAP assigns it a small
+but non-zero weight using the same underlying data.
 
 ### VaR / CVaR
 
