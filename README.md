@@ -6,9 +6,7 @@ and gradient-based explainability applied to both. Also includes historical and 
 VaR/CVaR calculations with stress-window comparisons.
 
 Data is real market data pulled from Yahoo Finance (sector ETFs, VIX, treasury yields), not
-synthetic. The goal is a working, honestly reported project, not a maximally impressive one: the
-quantum model does not beat the classical baseline here, and that result is reported and
-explained rather than hidden.
+synthetic.
 
 ## What's in here
 
