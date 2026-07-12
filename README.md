@@ -108,7 +108,7 @@ COVID-period VaR is 5.5x the full-sample VaR; the 2022 rate hike period is 1.4x.
 ## Project structure
 
 ```
-quantum-xai-finance/
+Market-Stress-Models/
   README.md
   requirements.txt
   src/
