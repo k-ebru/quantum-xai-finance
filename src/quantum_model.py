@@ -24,7 +24,7 @@ def build_device(n_qubits: int):
 def make_circuit(n_qubits: int, n_layers: int = N_LAYERS):
     dev = build_device(n_qubits)
 
-    @qml.qnode(dev, interface="autograd")
+    @qml.qnode(dev, interface="autograd", diff_method="parameter-shift")
     def circuit(x, weights):
         qml.AngleEmbedding(x, wires=range(n_qubits))
         qml.BasicEntanglerLayers(weights, wires=range(n_qubits))

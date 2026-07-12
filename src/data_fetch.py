@@ -1,7 +1,5 @@
 """Fetch raw market data from Yahoo Finance for the stress regime project."""
 
-from datetime import date
-
 import pandas as pd
 import yfinance as yf
 
@@ -10,7 +8,7 @@ RISK_FACTORS = ["^VIX", "^TNX", "^IRX"]
 TICKERS = SECTOR_ETFS + RISK_FACTORS
 
 START_DATE = "2018-01-01"
-END_DATE = date.today().isoformat()
+END_DATE = "2026-07-10"  # pinned to match the notebook results
 
 
 def fetch_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:

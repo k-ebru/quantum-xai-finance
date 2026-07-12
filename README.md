@@ -49,20 +49,28 @@ jupyter nbconvert --to notebook --execute --inplace notebooks/05_var_cvar_stress
 jupyter nbconvert --to notebook --execute --inplace notebooks/06_quantum_explainability_experiment.ipynb
 ```
 
-Notebook 04 and 06 both train the VQC (~3-4 minutes each on a laptop CPU) since the state vector
+Notebook 04 and 06 both train the VQC (~5-6 minutes each on a laptop CPU) since the state vector
 simulator evaluates the circuit once per sample per gradient step with no batching.
 
 ## Results
 
 ### Classification: stress regime prediction
 
-| Model | AUC | Brier score |
-|---|---:|---:|
-| Classical (gradient boosting) | 0.988 | 0.015 |
-| Quantum (VQC, 4 qubits) | 0.962 | 0.082 |
+| Model | AUC |
+|---|---:|
+| Persistence (yesterday's label) | 0.985 |
+| Classical (gradient boosting) | 0.988 |
+| Quantum (VQC, 4 qubits) | 0.962 |
 
-The quantum model does not beat the classical baseline. See notebook 04 for a discussion of why
-(qubit count, ansatz depth, training budget).
+The persistence baseline (predict today's regime = yesterday's regime) achieves 0.985 AUC on the
+test set, since the stress label changes on only about 2.4% of trading days. The gradient boosting
+model adds marginal lift over this baseline. The quantum model does not beat the classical
+baseline; see notebook 04 for a discussion of why (qubit count, ansatz depth, training budget).
+
+The Brier scores (0.015 classical, 0.082 quantum) are not directly comparable: the classical
+model's `predict_proba` output is a calibrated probability, while the quantum circuit's raw
+PauliZ expectation is linearly rescaled to [0,1] without calibration. AUC is the reliable
+comparison metric here since it depends only on ranking, not on calibration.
 
 ### Feature importance (SHAP, classical model)
 
@@ -72,7 +80,12 @@ contribute secondary signal, `yield_spread` the least.
 
 ### Quantum vs classical explainability
 
-Comparing SHAP against quantum gradient x input attribution on 5 test samples: both methods rank
+SHAP is computed on the gradient boosting model; gradient x input is computed on the VQC. These
+are two different model-method pairs, not two explanation methods applied to the same model.
+Preprocessing also differs: SHAP operates on the raw feature scale, the quantum attribution on
+the [0, pi] angle-encoded inputs.
+
+On 5 test samples, both methods rank
 `portfolio_vol` first and `momentum` last, but disagree on the middle ranking (`vix` vs
 `yield_spread`). Spearman rank correlation is 0.800, not statistically significant with only 4
 features. The quantum method's `momentum` attribution is consistently near zero (~1e-16) across
@@ -141,7 +154,7 @@ the dataset is a few thousand trading days, not a large-scale financial dataset.
 
 ## Stack
 
-Python, pandas, NumPy, scikit-learn, statsmodels, SHAP, PennyLane, yfinance, Matplotlib, SciPy.
+Python, pandas, NumPy, scikit-learn, SHAP, PennyLane, yfinance, Matplotlib, SciPy.
 
 ## License
 
