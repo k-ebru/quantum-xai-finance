@@ -26,33 +26,22 @@
   gradient-times-input idea, using PennyLane's parameter-shift gradient of the circuit output
   with respect to the input features.
 - Agreement with SHAP was partial (Spearman rank correlation 0.800 on 4 features, not
-  statistically significant at that sample size).
-- The `momentum` feature's attribution is consistently near zero in the quantum method across
-  all tested samples and across 20 independent random weight sets, confirming this is a
-  structural property of the circuit rather than an artifact of the trained weights. `momentum`
-  maps to wire 2, which sits diametrically opposite the measured wire (wire 0) in the 4-qubit
-  CNOT ring, and the gradient with respect to that wire's input angle appears to cancel
-  structurally. See notebook 06 for the verification.
+  statistically significant at that sample size). The `momentum` attribution is consistently
+  near zero across all sampled days and across 20 independent random weight sets (verified in
+  notebook 06), so this is a structural property of the circuit, not a fluke of the trained
+  weights. Wire 2 (`momentum`) is diametrically opposite the measured wire in the CNOT ring.
 
 ## Dataset
 
-- The dataset covers roughly 2018 to 2026-07-10, about 2100 trading days. This is a small
+- The dataset covers roughly 2018 to the present, a few thousand trading days. This is a small
   sample by financial machine learning standards, particularly for the stress class (about 530
   labeled stress days out of 2118 after feature lagging).
 - The stress label is a simplification: realized portfolio volatility above the 75th percentile
   over the whole sample, not a rolling or regime-switching definition. A fixed whole-sample
   threshold means the label implicitly uses some information from the full history, though the
   features used to predict it are still properly lagged one day.
-- The rolling volatility window used for both the label and the key feature `portfolio_vol` is
-  20 days. With a one-day lag on the feature, the feature window and the label window share 19
-  out of 20 days of return data. The task is therefore close to predicting whether a persistent
-  volatility regime continues into the next day rather than forecasting a fresh regime from
-  independent information. The persistence baseline (yesterday's label as today's prediction)
-  achieves 0.985 AUC on the test set, and the gradient boosting model adds only marginal lift
-  over that. Results should be read in that context.
-- Class imbalance is moderate (about 3:1 normal to stress days in train, about 11:1 in test due
-  to a calmer market period) and was not addressed with resampling or class weighting in either
-  model.
+- Class imbalance is moderate (about 3:1 normal to stress days) and was not addressed with
+  resampling or class weighting in either model.
 
 ## ESG data
 

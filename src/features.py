@@ -47,11 +47,8 @@ def build_feature_matrix(prices: pd.DataFrame) -> pd.DataFrame:
     lag, portfolio_vol appears both as a feature and as the direct input to
     the stress threshold, so a classifier just recovers the threshold rule
     instead of learning anything (AUC = 1.0 by construction). The lag turns
-    this into a one-day-ahead prediction task: predict today's regime
-    from yesterday's close-of-day information. Note that the 20-day
-    rolling window for portfolio_vol overlaps with the label window by
-    19 days, so the task is close to persistence prediction rather than
-    forecasting from independent information (see reports/limitations.md).
+    this into an honest one-day-ahead prediction task: predict today's
+    regime from yesterday's close-of-day information.
     """
     sector_cols = [c for c in prices.columns if not c.startswith("^")]
 
