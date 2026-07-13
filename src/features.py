@@ -6,7 +6,9 @@ import pandas as pd
 REALIZED_VOL_WINDOW = 20
 MOMENTUM_WINDOW = 10
 STRESS_QUANTILE = 0.75
+STRESS_MIN_HISTORY = 252
 TRADING_DAYS_PER_YEAR = 252
+FEATURE_COLUMNS = ["portfolio_vol", "vix", "yield_spread", "momentum"]
 
 
 def compute_returns(prices: pd.DataFrame) -> pd.DataFrame:
@@ -26,15 +28,23 @@ def momentum(price_series: pd.Series, window: int = MOMENTUM_WINDOW) -> pd.Serie
     return price_series.pct_change(periods=window)
 
 
-def label_stress_regime(portfolio_vol: pd.Series, quantile: float = STRESS_QUANTILE) -> pd.Series:
-    """Label a period as stress (1) if realized volatility is in the top quantile.
+def label_stress_regime(
+    portfolio_vol: pd.Series,
+    quantile: float = STRESS_QUANTILE,
+    min_history: int = STRESS_MIN_HISTORY,
+) -> pd.Series:
+    """Label stress relative to volatility observed before each date.
 
-    The threshold is estimated over the whole sample, which is a simplification.
-    A rolling or expanding threshold would avoid any lookahead but adds
-    complexity that is not needed for this project.
+    The expanding threshold is shifted by one day, so neither the current
+    observation nor future test data can influence the label boundary.
     """
-    threshold = portfolio_vol.quantile(quantile)
-    return (portfolio_vol > threshold).astype(int)
+    threshold = (
+        portfolio_vol.shift(1)
+        .expanding(min_periods=min_history)
+        .quantile(quantile)
+    )
+    labels = (portfolio_vol > threshold).astype("Int64")
+    return labels.where(threshold.notna())
 
 
 def build_feature_matrix(prices: pd.DataFrame) -> pd.DataFrame:
@@ -43,12 +53,10 @@ def build_feature_matrix(prices: pd.DataFrame) -> pd.DataFrame:
     Expects prices to include the sector ETFs plus ^VIX, ^TNX and ^IRX
     columns, as produced by data_fetch.fetch_prices.
 
-    Features are lagged by one day relative to the stress label. Without the
-    lag, portfolio_vol appears both as a feature and as the direct input to
-    the stress threshold, so a classifier just recovers the threshold rule
-    instead of learning anything (AUC = 1.0 by construction). The lag turns
-    this into an honest one-day-ahead prediction task: predict today's
-    regime from yesterday's close-of-day information.
+    Features are lagged by one day relative to the stress label. The stress
+    threshold is also based only on observations available before the label
+    date. Together these choices make the split suitable for one-day-ahead
+    evaluation without using the held-out period to define its labels.
     """
     sector_cols = [c for c in prices.columns if not c.startswith("^")]
 
@@ -64,4 +72,6 @@ def build_feature_matrix(prices: pd.DataFrame) -> pd.DataFrame:
     features["momentum"] = momentum(portfolio_price).shift(1)
     features["stress"] = label_stress_regime(portfolio_vol)
 
-    return features.dropna()
+    features = features.dropna()
+    features["stress"] = features["stress"].astype(int)
+    return features
