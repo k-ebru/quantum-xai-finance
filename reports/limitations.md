@@ -1,60 +1,71 @@
 # Limitations
 
+## Dataset and labels
+
+- Prices come from Yahoo Finance and are pinned through 10 July 2026. Historical values can be
+  revised upstream, and the raw download is not tracked in Git.
+- The feature table starts on 1 February 2019 because the expanding stress threshold requires 252
+  prior volatility observations.
+- Stress is a heuristic label. A day is positive when its realized portfolio volatility exceeds
+  the expanding 75th percentile available before that date. It is not an externally observed
+  crisis label or a regime-switching estimate.
+- The full feature table has 316 stress days and 1,552 normal days. The rate falls from 20.6% in
+  training to 6.0% in the held-out period, so the evaluation includes a meaningful distribution
+  shift.
+- No resampling or class weighting is used. Precision and recall therefore depend strongly on the
+  fixed 0.5 threshold.
+
+## Classical models
+
+- The lagged-volatility logistic model is the main reference. It has higher held-out AUC and
+  PR-AUC than gradient boosting, showing that volatility persistence explains most of the
+  ranking performance.
+- Gradient boosting has a lower Brier score and slightly higher recall at the fixed threshold.
+  The comparison is based on one chronological split, not rolling cross-validation.
+- SHAP uses the training period as background and the held-out period as the explained sample.
+  The feature ranking can still vary across market periods.
+
 ## Quantum model
 
-- The VQC runs on PennyLane's `default.qubit` state vector simulator, not real quantum hardware.
-  No noise model, no decoherence, no hardware connectivity constraints.
-- 4 qubits, one per feature. This is a small feature budget: the classifier only sees
-  `portfolio_vol`, `vix`, `momentum` and `yield_spread`, ranked by SHAP importance on the
-  classical model. Adding more features would mean more qubits, which slows the simulator down
-  fast on a laptop.
-- The circuit uses `BasicEntanglerLayers` with 2 layers, a generic hardware-efficient ansatz. It
-  was not chosen or tuned specifically for this classification task.
-- Training uses plain gradient descent for 60 steps. The simulator has no batching, so each step
-  evaluates the circuit once per training sample. On the full 1588-row training set this measured
-  at roughly 24 seconds per step (about 24 minutes for 60 steps), so notebooks 04 and 06 both
-  train on a stratified 300-row subsample instead. This is a practical constraint of the
-  simulator, documented in the notebooks rather than worked around silently.
-- Given all of the above, the quantum classifier (AUC 0.962) does not beat the classical gradient
-  boosting baseline (AUC 0.988). This is the expected outcome for this setup, not a surprising
-  negative result, and it is reported as such rather than tuned to look better.
+- The VQC runs on PennyLane's `default.qubit` state-vector simulator, not quantum hardware. There
+  is no noise model, decoherence or hardware connectivity constraint.
+- The circuit uses four qubits, two `BasicEntanglerLayers` and a paired PauliZ readout on wires 0
+  and 1. A diagnostic over 20 random weight sets confirms that each input can affect this readout.
+- Training uses 60 gradient-descent steps on a reproducible 300-row stratified sample. The full
+  1,401-row training set is not used because simulator cost grows quickly.
+- Training took 852 seconds on the checked machine. Hardware and library versions affect runtime.
+- The VQC has held-out AUC 0.926 and PR-AUC 0.856, but produces no positive predictions at the
+  fixed 0.5 threshold. Its probability scale is not ready for operational use.
+- No threshold is selected on the test set. A future experiment would need a separate validation
+  period for threshold selection or calibration.
+- The VQC does not beat either classical model. There is no evidence of quantum advantage in this
+  setup.
 
-## Quantum explainability
+## Attribution experiment
 
-- The gradient x input attribution method used in notebook 06 is not a standard, peer-reviewed
-  quantum explainability technique. It is an exploratory adaptation of the classical
-  gradient-times-input idea, using PennyLane's parameter-shift gradient of the circuit output
-  with respect to the input features.
-- Agreement with SHAP was partial (Spearman rank correlation 0.800 on 4 features, not
-  statistically significant at that sample size). The `momentum` attribution is consistently
-  near zero across all sampled days and across 20 independent random weight sets (verified in
-  notebook 06), so this is a structural property of the circuit, not a fluke of the trained
-  weights. Wire 2 (`momentum`) is diametrically opposite the measured wire in the CNOT ring.
-
-## Dataset
-
-- The dataset covers roughly 2018 to the present, a few thousand trading days. This is a small
-  sample by financial machine learning standards, particularly for the stress class (about 530
-  labeled stress days out of 2118 after feature lagging).
-- The stress label is a simplification: realized portfolio volatility above the 75th percentile
-  over the whole sample, not a rolling or regime-switching definition. A fixed whole-sample
-  threshold means the label implicitly uses some information from the full history, though the
-  features used to predict it are still properly lagged one day.
-- Class imbalance is moderate (about 3:1 normal to stress days) and was not addressed with
-  resampling or class weighting in either model.
-
-## ESG data
-
-- No ESG (environmental, social, governance) data is included. yfinance's ESG data coverage is
-  inconsistent and not reliable enough to use as a project input, so it was left out rather than
-  included with a caveat.
+- Gradient-times-input is an exploratory adaptation, not a validated quantum explainability
+  technique.
+- SHAP and VQC attributions explain different models after different feature transformations.
+  Per-sample normalization makes bar heights comparable but does not make the methods equivalent.
+- The comparison uses five held-out days. Spearman correlation is 0.200 with p=0.800, which does
+  not support a claim of agreement.
+- The circuit-gradient check verifies feature visibility only. It does not validate the
+  attribution method or show that the learned feature effects are economically meaningful.
 
 ## Risk metrics
 
-- Monte Carlo VaR/CVaR assumes normally distributed returns (`numpy`'s `rng.normal` sampling from
-  the sample mean and standard deviation). The historical VaR/CVaR numbers in this project are
-  consistently higher at the 99% confidence level, which points to fat tails that the normal
-  assumption does not capture. This gap is expected and is discussed in notebook 05, not treated
-  as an error in either method.
-- The stress test windows (COVID crash, 2022 rate hike) are fixed calendar dates chosen because
-  they are well known stress periods, not detected algorithmically from the data.
+- Monte Carlo VaR/CVaR samples one-day returns from a fitted normal distribution. It does not
+  model volatility clustering, changing correlations or multi-day paths.
+- The 10,000 simulations leave limited observations in the 99% tail. The fixed random seed makes
+  the notebook repeatable but does not remove Monte Carlo error.
+- The COVID and 2022 windows are fixed calendar choices. They are compared with the full sample,
+  which includes those same windows.
+- VaR forecasts are not backtested with coverage or independence tests. The notebook is a
+  descriptive comparison, not a production risk model.
+
+## Scope
+
+- No ESG data is included. Yahoo Finance coverage was not treated as reliable enough for a
+  consistent historical input.
+- The project uses a few thousand daily observations and four model features. It is a small
+  experiment rather than a large financial forecasting system.
