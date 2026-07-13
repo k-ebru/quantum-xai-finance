@@ -8,7 +8,8 @@ RISK_FACTORS = ["^VIX", "^TNX", "^IRX"]
 TICKERS = SECTOR_ETFS + RISK_FACTORS
 
 START_DATE = "2018-01-01"
-END_DATE = "2026-07-10"  # pinned so results match the notebooks
+# yfinance treats end as exclusive, so this includes 2026-07-10.
+END_DATE = "2026-07-11"
 
 
 def fetch_prices(tickers: list[str], start: str, end: str) -> pd.DataFrame:
