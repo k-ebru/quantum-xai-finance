@@ -2,12 +2,12 @@
 stress regime task, built with PennyLane.
 
 The circuit uses angle encoding for the input features and a small hardware
-efficient ansatz (BasicEntanglerLayers). Feature count is kept low, 4 to 6,
-because the state vector simulator slows down fast past that point on a
-laptop. This is a limitation worth stating plainly in the writeup, not
-something to work around here.
+efficient ansatz (BasicEntanglerLayers). The readout averages PauliZ on wires
+0 and 1. Their combined causal cones cover all four encoded inputs without
+the cost of measuring every wire.
 """
 
+import numpy as onp
 import pennylane as qml
 from pennylane import numpy as np
 
@@ -24,11 +24,15 @@ def build_device(n_qubits: int):
 def make_circuit(n_qubits: int, n_layers: int = N_LAYERS):
     dev = build_device(n_qubits)
 
-    @qml.qnode(dev, interface="autograd", diff_method="parameter-shift")
+    @qml.qnode(dev, interface="autograd", diff_method="backprop")
     def circuit(x, weights):
         qml.AngleEmbedding(x, wires=range(n_qubits))
         qml.BasicEntanglerLayers(weights, wires=range(n_qubits))
-        return qml.expval(qml.PauliZ(0))
+        observable = qml.Hamiltonian(
+            [0.5, 0.5],
+            [qml.PauliZ(0), qml.PauliZ(1)],
+        )
+        return qml.expval(observable)
 
     return circuit
 
@@ -71,17 +75,15 @@ def train_vqc(circuit, X_train, y_train, n_qubits, n_layers=N_LAYERS,
 def predict_vqc(circuit, X, weights):
     X_fixed = [np.array(x, requires_grad=False) for x in X]
     raw = np.array([circuit(x, weights) for x in X_fixed])
-    return (raw > 0).astype(int), raw
+    return onp.asarray(raw > 0, dtype=int), onp.asarray(raw, dtype=float)
 
 
 def quantum_gradient_attribution(circuit, x, weights):
     """Gradient times input attribution for a single sample.
 
-    Uses PennyLane's parameter shift rule to get the gradient of the circuit
-    output with respect to the input features, then multiplies elementwise
-    by the input itself. This is the quantum analogue of the classical
-    gradient x input method. It is not a peer reviewed quantum XAI technique,
-    treat it as an exploratory comparison against SHAP, not a validated method.
+    Differentiates the state-vector simulation with respect to the encoded
+    inputs, then multiplies the gradient elementwise by the input. This is an
+    exploratory comparison against SHAP, not a validated quantum XAI method.
     """
     x_diff = np.array(x, requires_grad=True)
     grad_fn = qml.grad(circuit, argnums=0)
